@@ -1,0 +1,605 @@
+// DashboardClientFrame.cpp - Version UTF-8 complète
+#include "DashboardClientFrame.h"
+#include "GestionCartesFrame.h"
+#include "GestionPretsFrame.h"
+#include <wx/textdlg.h>
+#include <wx/sizer.h>
+#include <locale.h>
+
+wxBEGIN_EVENT_TABLE(DashboardClientFrame, wxFrame)
+    EVT_BUTTON(ID_Depot, DashboardClientFrame::OnDepot)
+    EVT_BUTTON(ID_Retrait, DashboardClientFrame::OnRetrait)
+    EVT_BUTTON(ID_Virement, DashboardClientFrame::OnVirement)
+    EVT_BUTTON(ID_GererCartes, DashboardClientFrame::OnGererCartes)
+    EVT_BUTTON(ID_GererPrets, DashboardClientFrame::OnGererPrets)
+wxEND_EVENT_TABLE()
+
+DashboardClientFrame::DashboardClientFrame(const wxString& title)
+    : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(1000, 700))
+{
+    // Configuration UTF-8
+    setlocale(LC_ALL, "fr_FR.UTF-8");
+
+    // Initialiser les données de test avec numéros IBAN français valides
+    m_comptes.push_back(CompteBancaire(
+        wxT("FR76 1234 5678 9012 3456 7890 123"),
+        wxT("Compte Courant"),
+        1500.50f,
+        wxT("CLI001")
+    ));
+
+    m_comptes.push_back(CompteBancaire(
+        wxT("FR76 0987 6543 2109 8765 4321 098"),
+        wxT("Compte Épargne"),
+        3200.00f,
+        wxT("CLI001")
+    ));
+
+    m_cartes.push_back(CarteBancaire(
+        wxT("4532 1234 5678 9010"),
+        wxT("Visa Classic"),
+        wxT("Active"),
+        wxT("FR76 1234 5678 9012 3456 7890 123")
+    ));
+
+    m_cartes.push_back(CarteBancaire(
+        wxT("5412 7534 8690 1234"),
+        wxT("MasterCard Gold"),
+        wxT("Active"),
+        wxT("FR76 0987 6543 2109 8765 4321 098")
+    ));
+
+    m_prets.push_back(Pret(
+        wxT("PRET-2024-001"),
+        5000.0f,
+        3500.0f,
+        wxT("Actif"),
+        wxT("CLI001")
+    ));
+
+    m_prets.push_back(Pret(
+        wxT("PRET-2024-002"),
+        10000.0f,
+        2500.0f,
+        wxT("Actif"),
+        wxT("CLI001")
+    ));
+
+    CreerInterface();
+}
+
+void DashboardClientFrame::CreerInterface()
+{
+    wxPanel* panel = new wxPanel(this, wxID_ANY);
+    panel->SetBackgroundColour(wxColour(240, 242, 245));
+
+    wxBoxSizer* mainSizer = new wxBoxSizer(wxVERTICAL);
+
+    // Titre principal avec caractères Unicode
+    wxStaticText* lblTitre = new wxStaticText(
+        panel,
+        wxID_ANY,
+        wxT("🏦 Mon Espace Bancaire - Bienvenue Évodie !")
+    );
+    wxFont fontTitre(18, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    lblTitre->SetFont(fontTitre);
+    lblTitre->SetForegroundColour(wxColour(30, 60, 114));
+    mainSizer->Add(lblTitre, 0, wxALL | wxALIGN_CENTER, 20);
+
+    // Section Comptes
+    wxStaticText* lblComptes = new wxStaticText(
+        panel,
+        wxID_ANY,
+        wxT("💳 Mes Comptes Bancaires")
+    );
+    wxFont fontSection(12, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+    lblComptes->SetFont(fontSection);
+    lblComptes->SetForegroundColour(wxColour(52, 73, 94));
+    mainSizer->Add(lblComptes, 0, wxLEFT | wxRIGHT | wxTOP, 20);
+
+    m_listComptes = new wxListCtrl(
+        panel,
+        wxID_ANY,
+        wxDefaultPosition,
+        wxSize(-1, 120),
+        wxLC_REPORT | wxLC_SINGLE_SEL
+    );
+    m_listComptes->SetBackgroundColour(*wxWHITE);
+    m_listComptes->InsertColumn(0, wxT("Numéro de compte"), wxLIST_FORMAT_LEFT, 250);
+    m_listComptes->InsertColumn(1, wxT("Type"), wxLIST_FORMAT_LEFT, 150);
+    m_listComptes->InsertColumn(2, wxT("Solde (€)"), wxLIST_FORMAT_RIGHT, 150);
+    mainSizer->Add(m_listComptes, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 20);
+
+    // Section Cartes
+    wxStaticText* lblCartes = new wxStaticText(
+        panel,
+        wxID_ANY,
+        wxT("💎 Mes Cartes Bancaires")
+    );
+    lblCartes->SetFont(fontSection);
+    lblCartes->SetForegroundColour(wxColour(52, 73, 94));
+    mainSizer->Add(lblCartes, 0, wxLEFT | wxRIGHT | wxTOP, 20);
+
+    m_listCartes = new wxListCtrl(
+        panel,
+        wxID_ANY,
+        wxDefaultPosition,
+        wxSize(-1, 100),
+        wxLC_REPORT | wxLC_SINGLE_SEL
+    );
+    m_listCartes->SetBackgroundColour(*wxWHITE);
+    m_listCartes->InsertColumn(0, wxT("Numéro de carte"), wxLIST_FORMAT_LEFT, 200);
+    m_listCartes->InsertColumn(1, wxT("Type"), wxLIST_FORMAT_LEFT, 150);
+    m_listCartes->InsertColumn(2, wxT("État"), wxLIST_FORMAT_CENTER, 120);
+    m_listCartes->InsertColumn(3, wxT("Compte associé"), wxLIST_FORMAT_LEFT, 250);
+    mainSizer->Add(m_listCartes, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 20);
+
+    // Section Prêts
+    wxStaticText* lblPrets = new wxStaticText(
+        panel,
+        wxID_ANY,
+        wxT("💰 Mes Prêts")
+    );
+    lblPrets->SetFont(fontSection);
+    lblPrets->SetForegroundColour(wxColour(52, 73, 94));
+    mainSizer->Add(lblPrets, 0, wxLEFT | wxRIGHT | wxTOP, 20);
+
+    m_listPrets = new wxListCtrl(
+        panel,
+        wxID_ANY,
+        wxDefaultPosition,
+        wxSize(-1, 100),
+        wxLC_REPORT | wxLC_SINGLE_SEL
+    );
+    m_listPrets->SetBackgroundColour(*wxWHITE);
+    m_listPrets->InsertColumn(0, wxT("ID Prêt"), wxLIST_FORMAT_LEFT, 150);
+    m_listPrets->InsertColumn(1, wxT("Montant Initial (€)"), wxLIST_FORMAT_RIGHT, 150);
+    m_listPrets->InsertColumn(2, wxT("Montant Restant (€)"), wxLIST_FORMAT_RIGHT, 150);
+    m_listPrets->InsertColumn(3, wxT("État"), wxLIST_FORMAT_CENTER, 120);
+    mainSizer->Add(m_listPrets, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 20);
+
+    // Boutons d'actions
+    wxBoxSizer* btnSizer = new wxBoxSizer(wxHORIZONTAL);
+    wxFont fontBtn(10, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_BOLD);
+
+    wxButton* btnDepot = new wxButton(
+        panel,
+        ID_Depot,
+        wxT("💵 Dépôt"),
+        wxDefaultPosition,
+        wxSize(150, 45)
+    );
+    btnDepot->SetBackgroundColour(wxColour(46, 204, 113));
+    btnDepot->SetForegroundColour(*wxWHITE);
+    btnDepot->SetFont(fontBtn);
+    btnSizer->Add(btnDepot, 0, wxALL, 5);
+
+    wxButton* btnRetrait = new wxButton(
+        panel,
+        ID_Retrait,
+        wxT("💸 Retrait"),
+        wxDefaultPosition,
+        wxSize(150, 45)
+    );
+    btnRetrait->SetBackgroundColour(wxColour(231, 76, 60));
+    btnRetrait->SetForegroundColour(*wxWHITE);
+    btnRetrait->SetFont(fontBtn);
+    btnSizer->Add(btnRetrait, 0, wxALL, 5);
+
+    wxButton* btnVirement = new wxButton(
+        panel,
+        ID_Virement,
+        wxT("🔄 Virement"),
+        wxDefaultPosition,
+        wxSize(150, 45)
+    );
+    btnVirement->SetBackgroundColour(wxColour(52, 152, 219));
+    btnVirement->SetForegroundColour(*wxWHITE);
+    btnVirement->SetFont(fontBtn);
+    btnSizer->Add(btnVirement, 0, wxALL, 5);
+
+    wxButton* btnCartes = new wxButton(
+        panel,
+        ID_GererCartes,
+        wxT("💎 Mes cartes"),
+        wxDefaultPosition,
+        wxSize(150, 45)
+    );
+    btnCartes->SetBackgroundColour(wxColour(155, 89, 182));
+    btnCartes->SetForegroundColour(*wxWHITE);
+    btnCartes->SetFont(fontBtn);
+    btnSizer->Add(btnCartes, 0, wxALL, 5);
+
+    wxButton* btnPrets = new wxButton(
+        panel,
+        ID_GererPrets,
+        wxT("💰 Mes prêts"),
+        wxDefaultPosition,
+        wxSize(150, 45)
+    );
+    btnPrets->SetBackgroundColour(wxColour(230, 126, 34));
+    btnPrets->SetForegroundColour(*wxWHITE);
+    btnPrets->SetFont(fontBtn);
+    btnSizer->Add(btnPrets, 0, wxALL, 5);
+
+    mainSizer->Add(btnSizer, 0, wxALIGN_CENTER | wxALL, 20);
+
+    panel->SetSizer(mainSizer);
+
+    ActualiserComptes();
+}
+
+void DashboardClientFrame::ActualiserComptes()
+{
+    if (!m_listComptes || !m_listCartes || !m_listPrets) return;
+
+    // Actualiser comptes
+    m_listComptes->Freeze();
+    m_listComptes->DeleteAllItems();
+    for (size_t i = 0; i < m_comptes.size(); ++i) {
+        long idx = m_listComptes->InsertItem(i, m_comptes[i].numeroCompte);
+        m_listComptes->SetItem(idx, 1, m_comptes[i].typeCompte);
+        m_listComptes->SetItem(idx, 2, wxString::Format(wxT("%.2f"), (double)m_comptes[i].solde));
+    }
+    m_listComptes->Thaw();
+
+    // Actualiser cartes
+    m_listCartes->Freeze();
+    m_listCartes->DeleteAllItems();
+    for (size_t i = 0; i < m_cartes.size(); ++i) {
+        long idx = m_listCartes->InsertItem(i, m_cartes[i].numeroCarte);
+        m_listCartes->SetItem(idx, 1, m_cartes[i].type);
+        m_listCartes->SetItem(idx, 2, m_cartes[i].etat);
+        m_listCartes->SetItem(idx, 3, m_cartes[i].numeroCompte);
+    }
+    m_listCartes->Thaw();
+
+    // Actualiser prêts
+    m_listPrets->Freeze();
+    m_listPrets->DeleteAllItems();
+    for (size_t i = 0; i < m_prets.size(); ++i) {
+        long idx = m_listPrets->InsertItem(i, m_prets[i].idPret);
+        m_listPrets->SetItem(idx, 1, wxString::Format(wxT("%.2f"), (double)m_prets[i].montantInitial));
+        m_listPrets->SetItem(idx, 2, wxString::Format(wxT("%.2f"), (double)m_prets[i].montantRestant));
+        m_listPrets->SetItem(idx, 3, m_prets[i].etat);
+    }
+    m_listPrets->Thaw();
+}
+
+void DashboardClientFrame::OnDepot(wxCommandEvent& event)
+{
+    // Vérifier qu'un compte est sélectionné
+    long item = m_listComptes->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (item == -1) {
+        wxMessageBox(
+            wxT("⚠️ Veuillez sélectionner un compte dans la liste avant d'effectuer un dépôt.\n\n"
+                "Cliquez sur un compte pour le sélectionner."),
+            wxT("Information"),
+            wxOK | wxICON_INFORMATION
+        );
+        return;
+    }
+
+    // Afficher les informations du compte sélectionné
+    wxString compteInfo = wxString::Format(
+        wxT("Compte sélectionné : %s\nSolde actuel : %.2f €\n\nEntrez le montant à déposer :"),
+        m_comptes[item].numeroCompte.c_str(),
+        (double)m_comptes[item].solde
+    );
+
+    wxTextEntryDialog dlg(
+        this,
+        compteInfo,
+        wxT("💵 Dépôt sur compte"),
+        wxT("100.00")
+    );
+
+    if (dlg.ShowModal() != wxID_OK) {
+        return; // Annulé par l'utilisateur
+    }
+
+    // Valider le montant
+    double montant;
+    if (!dlg.GetValue().ToDouble(&montant) || montant <= 0) {
+        wxMessageBox(
+            wxT("❌ Montant invalide !\n\n"
+                "Veuillez entrer un nombre positif.\n"
+                "Exemple : 100.50"),
+            wxT("Erreur de saisie"),
+            wxOK | wxICON_ERROR
+        );
+        return;
+    }
+
+    if (montant > 10000) {
+        wxMessageBox(
+            wxT("⚠️ Le montant maximum par dépôt est de 10 000 €.\n\n"
+                "Pour des montants supérieurs, veuillez contacter votre conseiller."),
+            wxT("Limite dépassée"),
+            wxOK | wxICON_WARNING
+        );
+        return;
+    }
+
+    // Effectuer le dépôt
+    float ancienSolde = m_comptes[item].solde;
+    m_comptes[item].deposer(montant);
+    ActualiserComptes();
+
+    // Message de confirmation détaillé
+    wxMessageBox(
+        wxString::Format(
+            wxT("✅ Dépôt effectué avec succès !\n\n"
+                "Compte : %s\n"
+                "Montant déposé : %.2f €\n"
+                "Ancien solde : %.2f €\n"
+                "Nouveau solde : %.2f €"),
+            m_comptes[item].numeroCompte.c_str(),
+            montant,
+            (double)ancienSolde,
+            (double)m_comptes[item].solde
+        ),
+        wxT("Dépôt réussi"),
+        wxOK | wxICON_INFORMATION
+    );
+}
+
+void DashboardClientFrame::OnRetrait(wxCommandEvent& event)
+{
+    // Vérifier qu'un compte est sélectionné
+    long item = m_listComptes->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (item == -1) {
+        wxMessageBox(
+            wxT("⚠️ Veuillez sélectionner un compte dans la liste avant d'effectuer un retrait.\n\n"
+                "Cliquez sur un compte pour le sélectionner."),
+            wxT("Information"),
+            wxOK | wxICON_INFORMATION
+        );
+        return;
+    }
+
+    // Afficher les informations du compte
+    wxString compteInfo = wxString::Format(
+        wxT("Compte sélectionné : %s\nSolde disponible : %.2f €\n\nEntrez le montant à retirer :"),
+        m_comptes[item].numeroCompte.c_str(),
+        (double)m_comptes[item].solde
+    );
+
+    wxTextEntryDialog dlg(
+        this,
+        compteInfo,
+        wxT("💸 Retrait"),
+        wxT("50.00")
+    );
+
+    if (dlg.ShowModal() != wxID_OK) {
+        return;
+    }
+
+    // Valider le montant
+    double montant;
+    if (!dlg.GetValue().ToDouble(&montant) || montant <= 0) {
+        wxMessageBox(
+            wxT("❌ Montant invalide !\n\n"
+                "Veuillez entrer un nombre positif.\n"
+                "Exemple : 50.00"),
+            wxT("Erreur de saisie"),
+            wxOK | wxICON_ERROR
+        );
+        return;
+    }
+
+    // Vérifier le solde
+    if (montant > m_comptes[item].solde) {
+        wxMessageBox(
+            wxString::Format(
+                wxT("❌ Solde insuffisant !\n\n"
+                    "Montant demandé : %.2f €\n"
+                    "Solde disponible : %.2f €\n"
+                    "Manque : %.2f €"),
+                montant,
+                (double)m_comptes[item].solde,
+                montant - (double)m_comptes[item].solde
+            ),
+            wxT("Solde insuffisant"),
+            wxOK | wxICON_ERROR
+        );
+        return;
+    }
+
+    // Effectuer le retrait
+    float ancienSolde = m_comptes[item].solde;
+    m_comptes[item].retirer(montant);
+    ActualiserComptes();
+
+    // Message de confirmation
+    wxMessageBox(
+        wxString::Format(
+            wxT("✅ Retrait effectué avec succès !\n\n"
+                "Compte : %s\n"
+                "Montant retiré : %.2f €\n"
+                "Ancien solde : %.2f €\n"
+                "Nouveau solde : %.2f €"),
+            m_comptes[item].numeroCompte.c_str(),
+            montant,
+            (double)ancienSolde,
+            (double)m_comptes[item].solde
+        ),
+        wxT("Retrait réussi"),
+        wxOK | wxICON_INFORMATION
+    );
+}
+
+void DashboardClientFrame::OnVirement(wxCommandEvent& event)
+{
+    // Vérifier qu'un compte source est sélectionné
+    long itemSource = m_listComptes->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
+    if (itemSource == -1) {
+        wxMessageBox(
+            wxT("⚠️ Veuillez sélectionner le compte SOURCE dans la liste.\n\n"
+                "Le compte source est celui depuis lequel l'argent sera débité."),
+            wxT("Information"),
+            wxOK | wxICON_INFORMATION
+        );
+        return;
+    }
+
+    // Demander le compte destinataire
+    wxString message = wxT("Comptes disponibles :\n\n");
+    for (size_t i = 0; i < m_comptes.size(); ++i) {
+        if ((long)i != itemSource) {
+            message += wxString::Format(
+                wxT("• %s (%s)\n"),
+                m_comptes[i].numeroCompte.c_str(),
+                m_comptes[i].typeCompte.c_str()
+            );
+        }
+    }
+    message += wxT("\nEntrez le numéro du compte DESTINATAIRE :");
+
+    wxTextEntryDialog dlgDest(
+        this,
+        message,
+        wxT("🔄 Virement - Compte destinataire")
+    );
+
+    if (dlgDest.ShowModal() != wxID_OK) {
+        return;
+    }
+
+    // Rechercher le compte destinataire
+    long itemDest = -1;
+    wxString numDest = dlgDest.GetValue().Trim();
+
+    for (size_t i = 0; i < m_comptes.size(); ++i) {
+        if (m_comptes[i].numeroCompte == numDest) {
+            itemDest = i;
+            break;
+        }
+    }
+
+    if (itemDest == -1) {
+        wxMessageBox(
+            wxString::Format(
+                wxT("❌ Compte destinataire introuvable !\n\n"
+                    "Le numéro '%s' ne correspond à aucun de vos comptes.\n\n"
+                    "Vérifiez le numéro et réessayez."),
+                numDest.c_str()
+            ),
+            wxT("Compte non trouvé"),
+            wxOK | wxICON_ERROR
+        );
+        return;
+    }
+
+    if (itemDest == itemSource) {
+        wxMessageBox(
+            wxT("❌ Opération impossible !\n\n"
+                "Vous ne pouvez pas faire un virement vers le même compte.\n\n"
+                "Veuillez sélectionner un compte différent."),
+            wxT("Erreur"),
+            wxOK | wxICON_ERROR
+        );
+        return;
+    }
+
+    // Demander le montant
+    wxString montantInfo = wxString::Format(
+        wxT("Virement de :\n"
+            "%s (%.2f €)\n\n"
+            "Vers :\n"
+            "%s (%.2f €)\n\n"
+            "Entrez le montant à transférer :"),
+        m_comptes[itemSource].numeroCompte.c_str(),
+        (double)m_comptes[itemSource].solde,
+        m_comptes[itemDest].numeroCompte.c_str(),
+        (double)m_comptes[itemDest].solde
+    );
+
+    wxTextEntryDialog dlgMontant(
+        this,
+        montantInfo,
+        wxT("🔄 Virement - Montant"),
+        wxT("100.00")
+    );
+
+    if (dlgMontant.ShowModal() != wxID_OK) {
+        return;
+    }
+
+    // Valider le montant
+    double montant;
+    if (!dlgMontant.GetValue().ToDouble(&montant) || montant <= 0) {
+        wxMessageBox(
+            wxT("❌ Montant invalide !\n\n"
+                "Veuillez entrer un nombre positif.\n"
+                "Exemple : 100.00"),
+            wxT("Erreur de saisie"),
+            wxOK | wxICON_ERROR
+        );
+        return;
+    }
+
+    // Vérifier le solde
+    if (montant > m_comptes[itemSource].solde) {
+        wxMessageBox(
+            wxString::Format(
+                wxT("❌ Solde insuffisant sur le compte source !\n\n"
+                    "Montant demandé : %.2f €\n"
+                    "Solde disponible : %.2f €\n"
+                    "Manque : %.2f €"),
+                montant,
+                (double)m_comptes[itemSource].solde,
+                montant - (double)m_comptes[itemSource].solde
+            ),
+            wxT("Solde insuffisant"),
+            wxOK | wxICON_ERROR
+        );
+        return;
+    }
+
+    // Effectuer le virement
+    float ancienSoldeSource = m_comptes[itemSource].solde;
+    float ancienSoldeDest = m_comptes[itemDest].solde;
+
+    m_comptes[itemSource].retirer(montant);
+    m_comptes[itemDest].deposer(montant);
+    ActualiserComptes();
+
+    // Message de confirmation détaillé
+    wxMessageBox(
+        wxString::Format(
+            wxT("✅ Virement effectué avec succès !\n\n"
+                "Montant transféré : %.2f €\n\n"
+                "Compte SOURCE :\n"
+                "%s\n"
+                "Ancien solde : %.2f €\n"
+                "Nouveau solde : %.2f €\n\n"
+                "Compte DESTINATAIRE :\n"
+                "%s\n"
+                "Ancien solde : %.2f €\n"
+                "Nouveau solde : %.2f €"),
+            montant,
+            m_comptes[itemSource].numeroCompte.c_str(),
+            (double)ancienSoldeSource,
+            (double)m_comptes[itemSource].solde,
+            m_comptes[itemDest].numeroCompte.c_str(),
+            (double)ancienSoldeDest,
+            (double)m_comptes[itemDest].solde
+        ),
+        wxT("Virement réussi"),
+        wxOK | wxICON_INFORMATION
+    );
+}
+
+void DashboardClientFrame::OnGererCartes(wxCommandEvent& event)
+{
+    GestionCartesFrame* frame = new GestionCartesFrame(wxT("💎 Gestion de mes Cartes Bancaires"));
+    frame->Show();
+}
+
+void DashboardClientFrame::OnGererPrets(wxCommandEvent& event)
+{
+    GestionPretsFrame* frame = new GestionPretsFrame(wxT("💰 Gestion de mes Prêts"));
+    frame->Show();
+}
