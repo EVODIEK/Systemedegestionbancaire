@@ -8,3 +8,4 @@ obj/
 compile.log
 tout_le_code.txt
 core
+*.backup
