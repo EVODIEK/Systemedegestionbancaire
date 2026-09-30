@@ -1,0 +1,10 @@
+BanqueApp
+TestApp
+*.o
+*.layout
+*.depend
+bin/
+obj/
+compile.log
+tout_le_code.txt
+core
