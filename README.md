@@ -127,8 +127,8 @@ wx-config --version
 ### En ligne de commande
 
 ```bash
-git clone https://github.com/TON_PSEUDO/BanqueApp.git
-cd BanqueApp
+git clone https://github.com/EVODIEK/Systemedegestionbancaire.git
+cd Systemedegestionbancaire
 g++ -g -Wall src/*.cpp -Iinclude `wx-config --cxxflags --libs` -o BanqueApp
 ./BanqueApp
 ```
