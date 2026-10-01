@@ -192,4 +192,4 @@ g++ -g -Wall src/*.cpp -Iinclude `wx-config --cxxflags --libs` -o BanqueApp
 
 ## Licence
 
-Projet académique. Licence à définir (par exemple MIT).
+Projet académique.
